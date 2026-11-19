@@ -1,100 +1,184 @@
-# Gaussian Splatting playground in Unity
+# Unity 高斯泼溅使用说明
 
-SIGGRAPH 2023 had a paper "[**3D Gaussian Splatting for Real-Time Radiance Field Rendering**](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/)" by Kerbl, Kopanas, Leimkühler, Drettakis
-that is really cool! Here's my visualizer / renderer of 3DGS for Unity.
+在 Unity 中加载并显示三维高斯泼溅（3D Gaussian Splatting，简称 3DGS）模型。本说明适用于当前 **2.0.0** 版本，包含插件导入、渲染管线配置、模型加载和功能列表。英文菜单、组件名和字段名保留 Unity 界面中的写法，方便查找。
 
-![Screenshot](/docs/Images/shotOverview.jpg?raw=true "Screenshot")
+![高斯泼溅场景预览](docs/Images/shotOverview.jpg)
 
-Everything in this repository is based on that original gaussian splatting paper. Towards end of 2023, there's a ton of
-[new gaussian splatting research](https://github.com/MrNeRF/awesome-3D-gaussian-splatting) coming out; _none_ of that is in this project.
+## 功能列表
 
-:warning: Status as of 2026 November: I'm not planning any significant further development.
+| 功能 | 使用方式与说明 |
+| --- | --- |
+| 直接加载模型 | 直接读取 `.ply`、`.spz`，无需预先转换为专用高斯资产。 |
+| 多种数据来源 | 支持相对于 `StreamingAssets` 的路径、相对于当前工作目录的路径、绝对路径和模型文件网址。 |
+| SPZ 格式支持 | 支持 SPZ 1～4，包括使用 Zstandard 压缩的 SPZ 4；支持 0～3 阶球谐数据。 |
+| 三种渲染管线 | 支持内置渲染管线、通用渲染管线（URP）和高清渲染管线（HDRP）。 |
+| 多对象全局排序 | 在排序混合模式下，对多个高斯对象统一排序，正确处理它们相互交叠时的前后关系。 |
+| 两种透明渲染方式 | 默认使用排序混合；也可选择无需排序的随机透明渲染。 |
+| 时域降噪 | 随机透明模式支持无滤波、简单累积和重投影滤波。 |
+| 场景统一设置 | 通过 `GaussianSplatRenderingOptions` 统一调整透明渲染、时域滤波和调试显示。 |
+| 单个对象调整 | 支持位置、旋转、缩放，以及高斯点大小、不透明度和球谐阶数调整。 |
+| 场景与相机预览 | 无需进入运行模式即可预览；支持透视和正交相机，也可读取配套相机文件切换视角。 |
+| 深度遮挡 | 可与普通不透明物体共同显示，并根据深度进行遮挡。 |
+| 调试显示 | 支持点模式和仅显示球谐贡献，方便检查模型。 |
 
-:warning: The only platforms where this is known to work are the ones that use D3D12, Metal or Vulkan graphics APIs.
-PC (Windows on D3D12 or Vulkan), Mac (Metal), Linux (Vulkan) should work. Anything else I have not actually tested;
-it might work or it might not.
-- Some virtual reality devices reportedly work (reportedly HTC Vive, Varjo Aero, Quest 3 and Quest Pro). Some others might not
-  work, e.g. Apple Vision Pro. See [#17](https://github.com/aras-p/UnityGaussianSplatting/issues/17)
-- Anything using OpenGL or OpenGL ES: [#26](https://github.com/aras-p/UnityGaussianSplatting/issues/26)
-- WebGPU might work someday, but seems that today it does not quite have all the required graphics features yet: [#65](https://github.com/aras-p/UnityGaussianSplatting/issues/65)
-- Mobile may or might not work. Some iOS devices definitely do not work ([#72](https://github.com/aras-p/UnityGaussianSplatting/issues/72)),
-  some Androids do not work either ([#112](https://github.com/aras-p/UnityGaussianSplatting/issues/112))
+## 环境要求
 
-## Usage
+| 项目 | 要求 |
+| --- | --- |
+| 内置渲染管线 | Unity 2022.3 或兼容的较新版本；仓库示例使用 2022.3.62f3。 |
+| URP / HDRP | Unity 6 或更新版本；仓库示例使用 6000.0.81f1。 |
+| Windows | 使用 Direct3D 12 或 Vulkan，**不支持 Direct3D 11**。 |
+| macOS | 使用 Metal。 |
+| Linux | 使用 Vulkan。 |
+| 显卡 | 需要支持计算着色器，并具备足够的显存容纳模型与渲染缓冲区。 |
 
-Download or clone this repository, open `projects/GaussianExample` (BiRP, 2022.3), `projects/GaussianExample-URP`
-(URP, 6000.0) or `projects/GaussianExample-HDRP` (HDRP, 6000.0) as a Unity project, and open `GSTestScene` scene in there.
-These should also work in Unity versions 6000.3, 6000.6 and 7000.0; perhaps some others too.
+推荐先在桌面平台验证。OpenGL、OpenGL ES 和 MSAA 抗锯齿不受支持；移动端、网页端和各类 XR 设备的兼容性需单独验证。
 
-Note that the project requires DX12 or Vulkan on Windows, i.e. **DX11 will not work**. This is
-**not tested at all on mobile/web**, and probably does not work there.
+## 导入 Unity
 
-Put a gaussian splat `.ply` or `.spz` file under `Assets/StreamingAssets` (for example,
-`Assets/StreamingAssets/bicycle.ply`). Have a GameObject with `GaussianSplatRenderer`
-component, and drag the file onto the **PLY / SPZ** field. `StreamingAssets` is convenient
-because files under that will automatically get included into player builds; the
-`GaussianSplatRenderer` source file path can be relative to streaming assets, current working
-directory, absolute filesystem path, or a URL.
+### 方式一：导入已有项目
 
-Add a `GaussianSplatRenderingOptions` component to any GameObject to change global rendering options
-(transparency method, temporal filtering, debug render mode and SH-only display).
-**Sorted Blended** is the default. **Stochastic** uses noisy alpha testing and depth writes without sorting;
-and can use several temporal filtering methods. Without an options component, defaults are used.
+1. 打开 Unity 项目，进入包管理器（`Window > Package Manager`；部分版本位于 `Window > Package Management > Package Manager`）。
+2. 点击左上角的 `+`，选择从 Git 网址添加包（`Add package from git URL...` 或 `Install package from git URL...`）。
+3. 输入本仓库 `ZH` 分支中的包路径：
 
-Currently two file formats are supported:
-- PLY format from the original 3DGS paper (in the official paper models, the correct files
-  are under `point_cloud/iteration_*/point_cloud.ply`). It needs to be binary PLY file,
-  with all splat related properties being regular floats.
-- [Scaniverse SPZ](https://scaniverse.com/spz) format; versions 1-4, with SH degrees 0-3.
-  Antialiased files load with a warning; SPZ extensions are not supported.
+   ```text
+   https://github.com/Funny-Rainbow/UnityGaussianSplatting-ZH.git?path=/package#ZH
+   ```
 
-Optionally there can be a `[basename].json` file next to the PLY/SPZ file (e.g. `garden.json` for `garden.ply`), describing
-cameras, in format from the original paper. The inspector's **Cameras**
-selector then moves the main camera relative to the splat object.
+4. 等待安装与脚本编译完成。包管理器会按包声明安装 Burst、Collections 和 Mathematics 依赖。
+5. 按下文配置项目使用的渲染管线，然后加载模型。
 
-Additional documentation:
+使用 Git 网址安装需要本机已安装 Git，并且 Unity 可以访问 GitHub。
 
-* [Render Pipeline Integration](/docs/render-pipeline-integration.md)
+也可以先下载或克隆仓库，在包管理器的 `+` 菜单中选择从磁盘安装（`Add package from disk...` 或 `Install package from disk...`），选中仓库内的 **`package/package.json`**。使用这种方式时，请保留本地 `package` 目录。
 
-_That's it!_
+### 方式二：打开示例项目
 
+1. 克隆 `ZH` 分支，或在 GitHub 切换到该分支后，通过 `Code > Download ZIP` 下载并解压。
 
-## Write-ups
+   ```bash
+   git clone --branch ZH https://github.com/Funny-Rainbow/UnityGaussianSplatting-ZH.git
+   ```
 
-My own blog posts about all this:
-* [Gaussian Splatting is pretty cool!](https://aras-p.info/blog/2023/09/05/Gaussian-Splatting-is-pretty-cool/) (2023 Sep 5)
-* [Making Gaussian Splats smaller](https://aras-p.info/blog/2023/09/13/Making-Gaussian-Splats-smaller/) (2023 Sep 13)
-* [Making Gaussian Splats more smaller](https://aras-p.info/blog/2023/09/27/Making-Gaussian-Splats-more-smaller/) (2023 Sep 27)
-* [Gaussian Explosion](https://aras-p.info/blog/2023/12/08/Gaussian-explosion/) (2023 Dec 8)
+2. 在 Unity Hub 中添加下列某一个项目目录，并使用对应版本的编辑器打开：
 
-## Performance numbers:
+   | 渲染管线 | 项目目录 | 编辑器版本 |
+   | --- | --- | --- |
+   | 内置渲染管线 | `projects/GaussianExample` | Unity 2022.3 |
+   | URP | `projects/GaussianExample-URP` | Unity 6 |
+   | HDRP | `projects/GaussianExample-HDRP` | Unity 6 |
 
-"bicycle" scene from the paper, with 6.1M splats and first camera, rendering at 1200x797 resolution:
+3. 保留仓库目录结构。示例通过相对路径引用根目录中的 `package`，不能只复制示例项目文件夹。
+4. 等待导入完成，打开项目内的 `Assets/GSTestScene.unity`。
+5. 自行准备模型文件，并按“加载与使用模型”一节替换场景中渲染组件的模型路径。
 
-* Windows (NVIDIA RTX 3080 Ti):
-  * Official SBIR viewer: 7.4ms (135FPS). 4.8GB VRAM usage.
-  * Unity, DX12 or Vulkan: 6.3ms (158FPS) - 4.5ms rendering, 0.9ms sorting, 0.5ms splat view calc.
-* Mac (Apple M4 Max):
-  * Unity, Metal: 12.8ms (78FPS).
+## 配置渲染管线
 
-At runtime, memory usage is 28 bytes per splat without SH, or 36/48/60 bytes for SH
-degrees 1/2/3 respectively.
-Besides this source data, rendering needs 44 bytes of GPU memory per splat in
-sorted blended mode, or 28 bytes in stochastic mode.
+### Windows 图形接口
 
+打开 `Edit > Project Settings > Player > Other Settings > Rendering`，在 Windows 的图形接口设置中关闭自动选择，将 **Direct3D12** 或 **Vulkan** 设为首选；按编辑器提示重启。不要使用 Direct3D11。
 
-## License and External Code Used
+### 内置渲染管线
 
-The code I wrote for this is under MIT license. The project also uses several 3rd party libraries:
+无需添加额外渲染通道，在场景中添加 `GaussianSplatRenderer` 即可。
 
-- [WangXuan95/TinyZZZ](https://github.com/WangXuan95/TinyZZZ), MIT license, (c) 2025 WangXuan95.
-  The Zstandard decoder from there was ported to C#/Burst.
-- [zanders3/json](https://github.com/zanders3/json), MIT license, (c) 2018 Alex Parker.
-- "DeviceRadixSort" GPU sorting code contributed by Thomas Smith ([#82](https://github.com/aras-p/UnityGaussianSplatting/pull/82)).
-- Virtual Reality fixes contributed by [@ninjamode](https://github.com/ninjamode) based on
-  [Unity-VR-Gaussian-Splatting](https://github.com/ninjamode/Unity-VR-Gaussian-Splatting).
+### URP 通用渲染管线
 
-However, keep in mind that the [license of the original paper implementation](https://github.com/graphdeco-inria/gaussian-splatting/blob/main/LICENSE.md)
-says that the official _training_ software for the Gaussian Splats is for educational / academic / non-commercial
-purpose; commercial usage requires getting license from INRIA. That is: even if this viewer / integration
-into Unity is just "MIT license", you need to separately consider *how* did you get your Gaussian Splat PLY files.
+1. 确认项目使用 Unity 6 或更新版本。
+2. 找到当前相机实际使用的 URP Renderer Data 资源，在 Inspector 的 `Add Renderer Feature` 中添加 **`GaussianSplatURPFeature`**。
+3. 在项目的 URP / Render Graph 设置中关闭 **`Compatibility Mode`**，启用渲染图路径。
+4. 关闭 MSAA。使用 OpenXR 时，将立体渲染模式设为 **`Multi-Pass`**。
+
+### HDRP 高清渲染管线
+
+1. 确认项目使用 Unity 6 或更新版本。
+2. 在场景中创建带有 **`Custom Pass Volume`** 组件的对象；需要全场景生效时启用 `Is Global`。
+3. 在自定义通道列表中添加 **`GaussianSplatHDRPPass`**。
+4. 注入点可选择透明物体之前（`Before Transparent`）或后处理之后（`After Post Process`）。遇到自动曝光导致的亮度异常时，优先尝试后处理之后。
+5. 确保相机的帧设置允许自定义通道，并关闭 MSAA。
+
+## 加载与使用模型
+
+### 准备模型文件
+
+插件负责显示已有模型，不包含训练流程。请准备以下任意一种文件：
+
+- **PLY**：包含三维高斯属性的 `binary_little_endian 1.0` 二进制 PLY，相关高斯属性使用 `float`。普通点云 PLY 或 ASCII PLY 不能直接作为高斯模型使用。原始 3DGS 模型通常使用 `point_cloud/iteration_*/point_cloud.ply`。
+- **SPZ**：支持 1～4 版和 0～3 阶球谐数据。带抗锯齿标记的文件会产生警告，显示可能不完全正确；暂不支持 SPZ 扩展。
+
+### 在场景中显示模型
+
+1. 在 Unity 项目的 `Assets` 下创建 `StreamingAssets` 文件夹，把模型放入其中，例如：
+
+   ```text
+   Assets/
+   └── StreamingAssets/
+       └── bicycle.ply
+   ```
+
+2. 在场景中创建一个空对象，通过 `Add Component` 添加 **`GaussianSplatRenderer`**。
+3. 将模型文件拖到组件的 **`PLY / SPZ`** 字段，或点击旁边的文件夹按钮选择文件。也可以直接填入 `bicycle.ply`。
+4. 等待 `Loading...` 结束；加载成功后，Inspector 会显示高斯点数量和球谐阶数。加载失败时，查看组件提示和 Console。
+5. 选中模型对象，在场景视图按 `F` 聚焦，用对象的 Transform 调整位置、旋转和整体缩放，再把相机移到合适的位置。
+6. 在场景视图或游戏视图检查效果。源文件更新后，点击组件的 **`Reload`** 重新加载。
+
+需要放置多个模型时，为每个对象分别添加一个 `GaussianSplatRenderer` 并指定文件。
+
+### 调整单个模型
+
+| Inspector 字段 | 作用 |
+| --- | --- |
+| `PLY / SPZ` | 指定模型文件路径或网址。 |
+| `Splat Scale` | 调整每个高斯点的大小；整个模型的尺寸请使用 Transform 的缩放。 |
+| `Opacity Scale` | 调整不透明度。 |
+| `SH Order` | 设置用于显示的球谐阶数（0～3），实际效果取决于源文件包含的数据。 |
+| `Reload` | 重新读取当前模型文件。 |
+
+### 使用配套相机视角
+
+可在模型旁放置同名 JSON 文件，例如 `garden.ply` 配 `garden.json`。JSON 需使用原始 3DGS 的相机描述格式。加载成功后，组件中的 **`Cameras`** 滑块可将带有 `MainCamera` 标签的主相机切换到对应视角，视角相对于高斯对象的变换计算。
+
+## 设置全局渲染效果
+
+在场景中的一个对象上添加 **`GaussianSplatRenderingOptions`**，统一设置场景内所有高斯对象。未添加该组件时使用默认设置。
+
+| 设置 | 可选值与用途 |
+| --- | --- |
+| 透明渲染方式（`Transparency`） | **`Sorted Blended`**：默认方式，对高斯点全局排序后进行透明混合。**`Stochastic`**：随机透明测试并写入深度，无需排序，单帧会有明显噪点。 |
+| 时域滤波（`Temporal Filter`） | 仅在随机透明模式下生效。**`None`**：关闭滤波；**`Simple Accumulation`**：累积多帧，适合静止视角；**`Reprojected`**：使用重投影滤波，也是默认滤波选项。 |
+| 渲染模式（`Render Mode`） | **`Splats`**：正常显示高斯；**`Debug Points`**：以点显示，便于检查分布。 |
+| 点显示大小（`Point Display Size`） | 调整调试点模式下的点大小。 |
+| 仅显示球谐贡献（`SH Only`） | 使用灰色基底检查球谐数据带来的视角相关变化。 |
+
+首次使用建议保持 `Sorted Blended`。尝试 `Stochastic` 时同时启用时域滤波，观察连续多帧后的效果。
+
+## 路径与打包
+
+`PLY / SPZ` 字段支持以下来源：
+
+| 来源 | 示例 | 说明 |
+| --- | --- | --- |
+| 相对于 `StreamingAssets` | `bicycle.ply` 或 `models/garden.spz` | 推荐用于随应用发布的模型。 |
+| 相对于当前工作目录 | `data/garden.ply` | 优先查找 `StreamingAssets` 中的同路径文件，找不到时再按当前工作目录解析。 |
+| 绝对路径 | `D:/Models/garden.ply` | 适合本机调试；换设备后需确保对应文件存在。 |
+| 网络地址 | `https://example.com/models/garden.spz` | 填写可直接下载模型的地址，网址路径需保留 `.ply` 或 `.spz` 后缀。 |
+
+`Assets/StreamingAssets` 中的文件会随 Unity 构建一起打包。放在其他位置的模型不会因为组件引用了路径就自动进入构建，需要自行部署文件或通过网络加载。构建后也应确认目标平台使用受支持的图形接口。
+
+## 常见问题
+
+| 问题 | 检查方法 |
+| --- | --- |
+| 找不到渲染组件 | 确认包已安装完成，Console 没有脚本编译错误；组件名为 `GaussianSplatRenderer`。 |
+| 模型没有显示 | 检查路径和加载错误、对象是否启用、相机位置及裁剪范围；Windows 确认使用 DX12 / Vulkan，URP / HDRP 确认已添加对应渲染通道。 |
+| 编辑器能显示，打包后找不到文件 | 把模型放入 `Assets/StreamingAssets` 并使用相对路径，或在目标设备上部署外部文件。 |
+| 随机透明模式噪点明显 | 启用 `Simple Accumulation` 或 `Reprojected`，等待多帧累积；需要稳定的默认效果时选择 `Sorted Blended`。 |
+| 与场景中的透明物体混合异常 | 普通半透明物体与高斯对象之间仍有混合限制；多个高斯对象的全局排序不能解决普通透明材质的排序问题。 |
+| 灯光或阴影不起作用 | 高斯模型使用自身颜色和球谐数据，不受 Unity 灯光、阴影、反射探针或光照贴图影响。 |
+| 旧教程中的资产创建或编辑入口消失 | 2.0.0 已改为直接加载 PLY/SPZ，并移除了高斯点编辑、合并、裁剪及编辑结果导出工具；需要编辑时，可先使用外部高斯编辑器处理模型。 |
+| 显示或抗锯齿异常 | 关闭 MSAA；HDRP 还可尝试调整自定义通道注入点。 |
+
+以上直接加载、SPZ 4、全局排序、场景统一设置和随机透明渲染功能，可参阅[上游 2.0.0 版本说明](https://github.com/aras-p/UnityGaussianSplatting/releases/tag/v2.0.0)。
+
+**中文说明贡献者：** [Funny-Rainbow](https://github.com/Funny-Rainbow) · **代码许可证：** [MIT](LICENSE.md)
