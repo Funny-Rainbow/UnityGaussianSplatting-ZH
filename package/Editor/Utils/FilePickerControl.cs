@@ -6,6 +6,8 @@ using GaussianSplatting.Runtime;
 using UnityEditor;
 using UnityEngine;
 
+using static GaussianSplatting.Runtime.GaussianSplatLocalization;
+
 namespace GaussianSplatting.Editor.Utils
 {
     // path field + browse button + project-local recent path history
@@ -96,7 +98,7 @@ namespace GaussianSplatting.Editor.Utils
                 }
                 catch (ArgumentException) { } // browse from StreamingAssets if the current text is invalid
             }
-            string file = EditorUtility.OpenFilePanelWithFilters("Select splat file", directory, new[] { "Gaussian splats", "ply,spz" });
+            string file = EditorUtility.OpenFilePanelWithFilters(Text("Select splat file"), directory, new[] { Text("Gaussian splats"), "ply,spz" });
             if (string.IsNullOrEmpty(file))
                 return null;
             if (TrySourcePath(file, out string relative))
@@ -104,7 +106,7 @@ namespace GaussianSplatting.Editor.Utils
                 RememberPath(relative);
                 return relative;
             }
-            EditorUtility.DisplayDialog("Choose a splat file", "Choose a PLY/SPZ file", "OK");
+            EditorUtility.DisplayDialog(Text("Choose a splat file"), Text("Choose a PLY/SPZ file"), Text("OK"));
             return null;
         }
 
@@ -129,7 +131,7 @@ namespace GaussianSplatting.Editor.Utils
                 }
                 catch (ArgumentException) { } // inspector displays invalid/missing path messages
             }
-            if (GUI.Button(browse, EditorGUIUtility.IconContent("Folder Icon", "|Choose a PLY/SPZ file"), EditorStyles.miniButton))
+            if (GUI.Button(browse, new GUIContent(EditorGUIUtility.IconContent("Folder Icon").image, Text("Choose a PLY/SPZ file")), EditorStyles.miniButton))
             {
                 string selected = Browse(value);
                 if (selected != null)

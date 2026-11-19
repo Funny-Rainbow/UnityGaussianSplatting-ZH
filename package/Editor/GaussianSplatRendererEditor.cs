@@ -8,6 +8,8 @@ using UnityEditor;
 using UnityEngine;
 using GaussianSplatRenderer = GaussianSplatting.Runtime.GaussianSplatRenderer;
 
+using static GaussianSplatting.Runtime.GaussianSplatLocalization;
+
 namespace GaussianSplatting.Editor
 {
     [CustomEditor(typeof(GaussianSplatRenderer))]
@@ -42,10 +44,10 @@ namespace GaussianSplatting.Editor
             serializedObject.Update();
             var source = m_PropSourcePath;
             string sourcePath = source.stringValue;
-            GUILayout.Label("Source File", EditorStyles.boldLabel);
+            GUILayout.Label(Text("Source File"), EditorStyles.boldLabel);
             Rect rect = EditorGUILayout.GetControlRect();
             EditorGUI.showMixedValue = source.hasMultipleDifferentValues;
-            string path = m_FilePicker.PathFieldGUI(rect, new GUIContent("PLY / SPZ"), sourcePath);
+            string path = m_FilePicker.PathFieldGUI(rect, new GUIContent("PLY / SPZ", GaussianSplatEditorLocalization.PropertyLabel(source).tooltip), sourcePath);
             EditorGUI.showMixedValue = false;
             if (path != sourcePath)
             {
@@ -53,28 +55,28 @@ namespace GaussianSplatting.Editor
                 source.stringValue = sourcePath;
             }
             if (!source.hasMultipleDifferentValues && string.IsNullOrWhiteSpace(sourcePath))
-                EditorGUILayout.HelpBox("Gaussian Splat source file is not assigned", MessageType.Error);
+                EditorGUILayout.HelpBox(Text("Gaussian Splat source file is not assigned"), MessageType.Error);
             else if (!source.hasMultipleDifferentValues)
             {
                 try
                 {
                     string full = GaussianSplatReader.ResolvePath(Application.streamingAssetsPath, sourcePath);
-                    if (!GaussianSplatPaths.IsUrl(full) && !File.Exists(full)) EditorGUILayout.HelpBox("Source file is missing: " + full, MessageType.Warning);
+                    if (!GaussianSplatPaths.IsUrl(full) && !File.Exists(full)) EditorGUILayout.HelpBox(Text("Source file is missing: ") + full, MessageType.Warning);
                 }
                 catch (Exception e) { EditorGUILayout.HelpBox(e.Message, MessageType.Error); }
             }
 
             EditorGUILayout.Space();
-            GUILayout.Label("Render Options", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(m_PropSplatScale);
-            EditorGUILayout.PropertyField(m_PropOpacityScale);
-            EditorGUILayout.PropertyField(m_PropSHOrder);
+            GUILayout.Label(Text("Render Options"), EditorStyles.boldLabel);
+            GaussianSplatEditorLocalization.PropertyField(m_PropSplatScale);
+            GaussianSplatEditorLocalization.PropertyField(m_PropOpacityScale);
+            GaussianSplatEditorLocalization.PropertyField(m_PropSHOrder);
 
             EditorGUILayout.Space();
             bool validAndEnabled = gs && gs.enabled && gs.gameObject.activeInHierarchy && !string.IsNullOrWhiteSpace(sourcePath);
             if (validAndEnabled && !gs.HasValidRenderResources)
             {
-                EditorGUILayout.HelpBox("Shader resources are not set up", MessageType.Error);
+                EditorGUILayout.HelpBox(Text("Shader resources are not set up"), MessageType.Error);
                 validAndEnabled = false;
             }
 
@@ -82,21 +84,21 @@ namespace GaussianSplatting.Editor
             foreach (var obj in targets)
                 sourceChanged |= !source.hasMultipleDifferentValues && ((GaussianSplatRenderer)obj).m_SourcePath != sourcePath;
             serializedObject.ApplyModifiedProperties();
-            if (GUILayout.Button("Reload") || sourceChanged)
+            if (GUILayout.Button(Text("Reload")) || sourceChanged)
                 foreach (var obj in targets) ((GaussianSplatRenderer)obj).Reload();
             if (validAndEnabled && targets.Length == 1)
             {
-                if (gs.isLoading) EditorGUILayout.LabelField("Loading...");
+                if (gs.isLoading) EditorGUILayout.LabelField(Text("Loading..."));
                 else if (!string.IsNullOrEmpty(gs.loadError)) EditorGUILayout.HelpBox(gs.loadError, MessageType.Error);
                 else if (gs.HasValidRenderSetup)
                 {
                     EditCameras(gs);
                     EditorGUILayout.Space();
-                    EditorGUILayout.LabelField("Splats", $"{gs.splatCount:N0}");
-                    EditorGUILayout.LabelField("SH Degree", gs.sourceSHDegree.ToString());
+                    EditorGUILayout.LabelField(Text("Splats"), $"{gs.splatCount:N0}");
+                    EditorGUILayout.LabelField(Text("SH Degree"), gs.sourceSHDegree.ToString());
                     int coefficients = (gs.sourceSHDegree + 1) * (gs.sourceSHDegree + 1) - 1;
                     int stride = 28 + GaussianUtils.GetSHDataSize(coefficients);
-                    EditorGUILayout.LabelField("Splat Data", $"{stride} bytes/splat ({(long)stride * gs.splatCount / (1024.0 * 1024):N1} MiB)");
+                    EditorGUILayout.LabelField(Text("Splat Data"), Format("{0} bytes/splat ({1:N1} MiB)", stride, (long)stride * gs.splatCount / (1024.0 * 1024)));
                 }
             }
             // Keep requesting a repaint until the completed state has replaced "Loading...".
@@ -111,8 +113,8 @@ namespace GaussianSplatting.Editor
             if (cameras != null && cameras.Length != 0)
             {
                 EditorGUILayout.Space();
-                GUILayout.Label("Cameras", EditorStyles.boldLabel);
-                var camIndex = EditorGUILayout.IntSlider("Camera", m_CameraIndex, 0, cameras.Length - 1);
+                GUILayout.Label(Text("Cameras"), EditorStyles.boldLabel);
+                var camIndex = EditorGUILayout.IntSlider(Text("Camera"), m_CameraIndex, 0, cameras.Length - 1);
                 camIndex = math.clamp(camIndex, 0, cameras.Length - 1);
                 if (camIndex != m_CameraIndex)
                 {

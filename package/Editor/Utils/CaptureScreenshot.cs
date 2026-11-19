@@ -3,6 +3,8 @@
 using UnityEditor;
 using UnityEngine;
 
+using static GaussianSplatting.Runtime.GaussianSplatLocalization;
+
 namespace GaussianSplatting.Editor.Utils
 {
     public class CaptureScreenshot : MonoBehaviour
@@ -20,7 +22,7 @@ namespace GaussianSplatting.Editor.Utils
                 ++counter;
             }
             ScreenCapture.CaptureScreenshot(path);
-            Debug.Log($"Captured {path}");
+            Debug.Log(Format("Captured {0}", path));
         }
     }
 }

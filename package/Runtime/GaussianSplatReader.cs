@@ -2,6 +2,8 @@
 using System;
 using System.IO;
 
+using static GaussianSplatting.Runtime.GaussianSplatLocalization;
+
 namespace GaussianSplatting.Runtime
 {
     public static class GaussianSplatReader
@@ -11,12 +13,12 @@ namespace GaussianSplatting.Runtime
         {
             string path = sourcePath ?? "";
             if (string.IsNullOrWhiteSpace(path))
-                throw new ArgumentException("Choose a PLY/SPZ file path or URL");
+                throw new ArgumentException(Text("Choose a PLY/SPZ file path or URL"));
             bool url = GaussianSplatPaths.IsUrl(path);
             string filePath = path;
             if (url)
             {
-                if (!Uri.TryCreate(path, UriKind.Absolute, out var uri)) throw new ArgumentException("Invalid source URL");
+                if (!Uri.TryCreate(path, UriKind.Absolute, out var uri)) throw new ArgumentException(Text("Invalid source URL"));
                 filePath = uri.AbsolutePath;
             }
             else
@@ -25,7 +27,7 @@ namespace GaussianSplatting.Runtime
                 filePath = path;
             }
             string ext = Path.GetExtension(filePath).ToLowerInvariant();
-            if (ext != ".ply" && ext != ".spz") throw new ArgumentException("Source must be a .ply or .spz file");
+            if (ext != ".ply" && ext != ".spz") throw new ArgumentException(Text("Source must be a .ply or .spz file"));
             if (url)
                 return path;
             if (Path.IsPathRooted(path))

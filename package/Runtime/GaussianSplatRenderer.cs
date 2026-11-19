@@ -11,6 +11,8 @@ using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.XR;
 
+using static GaussianSplatting.Runtime.GaussianSplatLocalization;
+
 namespace GaussianSplatting.Runtime
 {
 #if UNITY_6000_5_OR_NEWER
@@ -245,20 +247,20 @@ namespace GaussianSplatting.Runtime
                 // view preparation dispatch is 1D, with 1024 group size
                 int splatLimit = 65535 * 1024;
                 if (gs.splatCount > splatLimit)
-                    error = $"Can't render '{gs.name}': view preparation supports at most {splatLimit:N0} splats per object";
+                    error = Format("Can't render '{0}': view preparation supports at most {1:N0} splats per object", gs.name, splatLimit);
             }
 
             // check view data buffer against maximum supported by system
             long bytes = count * kGpuViewDataSize;
             long limit = SystemInfo.maxGraphicsBufferSize;
             if (count > int.MaxValue || bytes > limit)
-                error = $"Cannot render all {count:N0} splats: shared view buffer needs {bytes:N0} bytes (max graphics buffer size {limit:N0})";
+                error = Format("Cannot render all {0:N0} splats: shared view buffer needs {1:N0} bytes (max graphics buffer size {2:N0})", count, bytes, limit);
             
             // radix sort dispatches one group per 3840 keys
             var options = GaussianSplatRenderingOptions.instance;
             int sortLimit = 65535 * 3840;
             if (options.m_RenderMode == RenderMode.Splats && options.needSorting && count > sortLimit)
-                error = $"Cannot sort all {count:N0} splats: we support at most {sortLimit:N0} splats";
+                error = Format("Cannot sort all {0:N0} splats: we support at most {1:N0} splats", count, sortLimit);
             if (error != null)
             {
                 if (m_BufferError != error) Debug.LogError(error);
@@ -601,7 +603,7 @@ namespace GaussianSplatting.Runtime
             if (!isActiveAndEnabled || string.IsNullOrWhiteSpace(m_SourcePath)) return;
             try
             {
-                if (!resourcesAreSetUp) throw new InvalidOperationException("Shader resources are missing or compute shaders are unsupported");
+                if (!resourcesAreSetUp) throw new InvalidOperationException(Text("Shader resources are missing or compute shaders are unsupported"));
                 EnsureRegistered();
                 m_LoadOperation = new GaussianSplatLoadOperation(Application.streamingAssetsPath, m_SourcePath);
                 isLoading = true;
@@ -616,7 +618,7 @@ namespace GaussianSplatting.Runtime
         {
             DisposeResources();
             loadError = e.Message;
-            Debug.LogError($"Cannot load splats '{m_SourcePath}': {e.Message}", this);
+            Debug.LogError(Format("Cannot load splats '{0}': {1}", m_SourcePath, e.Message), this);
             FinishLoading();
         }
 

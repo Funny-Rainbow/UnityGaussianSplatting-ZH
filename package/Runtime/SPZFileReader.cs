@@ -6,6 +6,8 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 
+using static GaussianSplatting.Runtime.GaussianSplatLocalization;
+
 namespace GaussianSplatting.Runtime
 {
     static class SPZFileReader
@@ -22,28 +24,28 @@ namespace GaussianSplatting.Runtime
         public static Header ReadHeader(Stream stream)
         {
             using var r = new BinaryReader(stream, Encoding.UTF8, true);
-            if (r.ReadUInt32() != 0x5053474e) throw new InvalidDataException("Invalid SPZ magic");
+            if (r.ReadUInt32() != 0x5053474e) throw new InvalidDataException(Text("Invalid SPZ magic"));
             uint version = r.ReadUInt32();
-            if (version < 1 || version > 4) throw new InvalidDataException($"SPZ version {version} is not supported (supported: 1–4)");
+            if (version < 1 || version > 4) throw new InvalidDataException(Format("SPZ version {0} is not supported (supported: 1–4)", version));
             int count = checked((int)r.ReadUInt32());
             int degree = r.ReadByte(), fractional = r.ReadByte();
             int flags = r.ReadByte(), streamCount = r.ReadByte();
-            if (fractional > 24) throw new InvalidDataException("Invalid SPZ fractional bits");
+            if (fractional > 24) throw new InvalidDataException(Text("Invalid SPZ fractional bits"));
             const int antialiasedFlag = 1;
             if ((flags & ~antialiasedFlag) != 0)
-                throw new InvalidDataException($"Unsupported SPZ flags: 0x{flags:X2}");
+                throw new InvalidDataException(Format("Unsupported SPZ flags: 0x{0:X2}", flags));
             if ((flags & antialiasedFlag) != 0)
-                UnityEngine.Debug.LogWarning("This SPZ was trained with antialiasing; rendering will not be fully correct");
+                UnityEngine.Debug.LogWarning(Text("This SPZ was trained with antialiasing; rendering will not be fully correct"));
             uint tocOffset = 0;
             if (version == 4)
             {
                 tocOffset = r.ReadUInt32();
                 for (int i = 0; i < 3; ++i)
-                    if (r.ReadUInt32() != 0) throw new InvalidDataException("Nonzero SPZ reserved header bytes");
+                    if (r.ReadUInt32() != 0) throw new InvalidDataException(Text("Nonzero SPZ reserved header bytes"));
                 // note: SH stream is omitted for degree zero
-                if (streamCount != (degree == 0 ? 5 : 6)) throw new InvalidDataException("Invalid SPZ stream count");
+                if (streamCount != (degree == 0 ? 5 : 6)) throw new InvalidDataException(Text("Invalid SPZ stream count"));
                 if (tocOffset < 32 || tocOffset > stream.Length - streamCount * 16)
-                    throw new InvalidDataException("Invalid SPZ table offset");
+                    throw new InvalidDataException(Text("Invalid SPZ table offset"));
             }
             return new Header { version = (int)version, count = count, degree = degree, fractionalBits = fractional, streamCount = streamCount, tocOffset = tocOffset };
         }
@@ -69,12 +71,12 @@ namespace GaussianSplatting.Runtime
                     ulong outputSize = reader.ReadUInt64();
                     int bytesPerSplat = i switch { 0 => 9, 1 => 1, 2 => 3, 3 => 3, 4 => 4, _ => ((header.degree + 1) * (header.degree + 1) - 1) * 3 };
                     int expectedSize = checked(header.count * bytesPerSplat);
-                    if (inputSize == 0 || outputSize != (ulong)expectedSize) throw new InvalidDataException("Invalid SPZ stream size");
+                    if (inputSize == 0 || outputSize != (ulong)expectedSize) throw new InvalidDataException(Text("Invalid SPZ stream size"));
                     streams[i] = new StreamInfo { inputOffset = inputOffset, inputSize = inputSize, outputOffset = outputOffset, outputSize = expectedSize };
                     inputOffset = checked(inputOffset + inputSize);
                     outputOffset = checked(outputOffset + expectedSize);
                 }
-                if (inputOffset != source.Length - source.Position) throw new InvalidDataException("SPZ compressed data size mismatch");
+                if (inputOffset != source.Length - source.Position) throw new InvalidDataException(Text("SPZ compressed data size mismatch"));
                 return streams;
             }
             catch { streams.Dispose(); throw; }

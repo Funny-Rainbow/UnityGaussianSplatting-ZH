@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
+using static GaussianSplatting.Runtime.GaussianSplatLocalization;
+
 namespace GaussianSplatting.Runtime
 {
     public static class GaussianSplatCameras
@@ -22,14 +24,14 @@ namespace GaussianSplatting.Runtime
         public static CameraInfo[] Parse(string json)
         {
             var entries = json.FromJson<List<JsonCamera>>();
-            if (entries == null) throw new InvalidDataException("Expected a 3DGS camera array");
+            if (entries == null) throw new InvalidDataException(Text("Expected a 3DGS camera array"));
             var cameras = new CameraInfo[entries.Count];
             for (int i = 0; i < entries.Count; ++i)
             {
                 var entry = entries[i];
                 if (entry?.position?.Length != 3 || entry.rotation?.Length != 3 ||
                     entry.rotation[0]?.Length != 3 || entry.rotation[1]?.Length != 3 || entry.rotation[2]?.Length != 3)
-                    throw new InvalidDataException($"Camera {i} needs a position and 3x3 rotation");
+                    throw new InvalidDataException(Format("Camera {0} needs a position and 3x3 rotation", i));
 
                 // Axis convention: matrix columns, with Y and Z flipped.
                 var up = -new Vector3(entry.rotation[0][1], entry.rotation[1][1], entry.rotation[2][1]);

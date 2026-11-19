@@ -11,6 +11,8 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 
+using static GaussianSplatting.Runtime.GaussianSplatLocalization;
+
 namespace GaussianSplatting.Editor
 {
 #if UNITY_6000_5_OR_NEWER
@@ -53,7 +55,7 @@ namespace GaussianSplatting.Editor
             var gaussians = Object.FindAnyObjectByType<GaussianSplatRenderer>();
             if (gaussians == null || !gaussians.isActiveAndEnabled || Camera.main == null)
             {
-                Debug.LogError("Validation needs an active GaussianSplatRenderer and a main camera");
+                Debug.LogError(Text("Validation needs an active GaussianSplatRenderer and a main camera"));
                 return;
             }
             s_Run = new ValidationRun(gaussians, Camera.main, refPrefix);
@@ -112,11 +114,11 @@ namespace GaussianSplatting.Editor
                         string path = $"{item.assetPath}.ply";
                         if (!File.Exists(Path.Combine(Application.streamingAssetsPath, path)))
                         {
-                            Debug.LogError($"Did not find validation source Assets/StreamingAssets/{path}");
+                            Debug.LogError(Format("Did not find validation source Assets/StreamingAssets/{0}", path));
                             ++m_Index;
                             return;
                         }
-                        EditorUtility.DisplayProgressBar("Validating Gaussian splat rendering", item.assetPath, (float)m_Index / m_Items.Length);
+                        EditorUtility.DisplayProgressBar(Text("Validating Gaussian splat rendering"), item.assetPath, (float)m_Index / m_Items.Length);
                         m_Gaussians.m_SourcePath = path;
                         m_Gaussians.Reload();
                         m_Loading = true;
@@ -125,9 +127,9 @@ namespace GaussianSplatting.Editor
                     if (m_Gaussians.isLoading)
                         return;
                     if (!string.IsNullOrEmpty(m_Gaussians.loadError))
-                        Debug.LogError($"Could not load validation item {item.assetPath}: {m_Gaussians.loadError}");
+                        Debug.LogError(Format("Could not load validation item {0}: {1}", item.assetPath, m_Gaussians.loadError));
                     else if (!m_Gaussians.HasValidRenderSetup || item.cameraIndex >= m_Gaussians.cameras.Length)
-                        Debug.LogError($"Missing splat data or camera {item.cameraIndex} for validation item {item.assetPath}");
+                        Debug.LogError(Format("Missing splat data or camera {0} for validation item {1}", item.cameraIndex, item.assetPath));
                     else
                         ValidateItem(m_Gaussians, m_Camera, item, m_RefPrefix);
                     m_Camera.targetTexture = m_OldCamTarget;
@@ -177,7 +179,7 @@ namespace GaussianSplatting.Editor
             var refImageFile = $"../../docs/RefImages/{refPrefix}_{item.assetPath}{item.cameraIndex}.png";
             if (!File.Exists(refImageFile))
             {
-                Debug.LogError($"Did not find reference image for validation item {item.assetPath} at {refImageFile}");
+                Debug.LogError(Format("Did not find reference image for validation item {0} at {1}", item.assetPath, refImageFile));
                 return;
             }
             var compareTexture = new Texture2D(4, 4, GraphicsFormat.R8G8B8A8_SRGB, TextureCreationFlags.None);
@@ -223,7 +225,7 @@ namespace GaussianSplatting.Editor
                 if (errorsCount > 50 || psnr < 90.0f)
                 {
                     Debug.LogWarning(
-                        $"{refPrefix} {item.assetPath} cam {item.cameraIndex}: RMSE {rmse:F2} PSNR {psnr:F2} diff pixels {errorsCount:N0}");
+                        Format("{0} {1} cam {2}: RMSE {3:F2} PSNR {4:F2} diff pixels {5:N0}", refPrefix, item.assetPath, item.cameraIndex, rmse, psnr, errorsCount));
 
                     NativeArray<byte> pngBytes = ImageConversion.EncodeNativeArrayToPNG(diffPixels,
                         GraphicsFormat.R8G8B8A8_SRGB, (uint) width, (uint) height);

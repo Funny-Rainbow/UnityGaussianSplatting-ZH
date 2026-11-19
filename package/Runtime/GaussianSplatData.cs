@@ -4,6 +4,8 @@ using System.IO;
 using Unity.Collections;
 using UnityEngine;
 
+using static GaussianSplatting.Runtime.GaussianSplatLocalization;
+
 namespace GaussianSplatting.Runtime
 {
     // CPU side buffers for uploading the splat data to the GPU.
@@ -17,9 +19,9 @@ namespace GaussianSplatting.Runtime
         public GaussianSplatData(int count, int degree)
         {
             if (count <= 0 || count > 16_000_000)
-                throw new InvalidDataException("Splat count must be between 1 and 16,000,000");
+                throw new InvalidDataException(Text("Splat count must be between 1 and 16,000,000"));
             if (degree < 0 || degree > 3)
-                throw new InvalidDataException("Only SH degrees 0 through 3 are supported");
+                throw new InvalidDataException(Text("Only SH degrees 0 through 3 are supported"));
             this.count = count;
             shDegree = degree;
             shCoefficients = (degree + 1) * (degree + 1) - 1;

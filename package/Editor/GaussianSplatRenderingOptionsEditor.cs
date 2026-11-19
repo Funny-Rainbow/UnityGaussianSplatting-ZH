@@ -2,6 +2,9 @@
 
 using GaussianSplatting.Runtime;
 using UnityEditor;
+using UnityEngine;
+using RenderMode = GaussianSplatting.Runtime.RenderMode;
+using static GaussianSplatting.Runtime.GaussianSplatLocalization;
 
 namespace GaussianSplatting.Editor
 {
@@ -30,14 +33,18 @@ namespace GaussianSplatting.Editor
         {
             serializedObject.Update();
             using (new EditorGUI.DisabledScope(true))
-                EditorGUILayout.PropertyField(m_PropScript);
-            EditorGUILayout.PropertyField(m_PropTransparency);
+                GaussianSplatEditorLocalization.PropertyField(m_PropScript);
+            EditorGUILayout.Space();
+            GUILayout.Label(Text("Options"), EditorStyles.boldLabel);
+            GaussianSplatEditorLocalization.PropertyField(m_PropTransparency);
             if (!m_PropTransparency.hasMultipleDifferentValues && m_PropTransparency.intValue == (int)TransparencyMode.Stochastic)
-                EditorGUILayout.PropertyField(m_PropTemporalFilter);
-            EditorGUILayout.PropertyField(m_PropRenderMode);
+                GaussianSplatEditorLocalization.PropertyField(m_PropTemporalFilter);
+            EditorGUILayout.Space();
+            GUILayout.Label(Text("Debugging Tweaks"), EditorStyles.boldLabel);
+            GaussianSplatEditorLocalization.PropertyField(m_PropRenderMode);
             if (!m_PropRenderMode.hasMultipleDifferentValues && m_PropRenderMode.intValue == (int)RenderMode.DebugPoints)
-                EditorGUILayout.PropertyField(m_PropPointSize);
-            EditorGUILayout.PropertyField(m_PropSHOnly);
+                GaussianSplatEditorLocalization.PropertyField(m_PropPointSize);
+            GaussianSplatEditorLocalization.PropertyField(m_PropSHOnly);
             serializedObject.ApplyModifiedProperties();
         }
     }

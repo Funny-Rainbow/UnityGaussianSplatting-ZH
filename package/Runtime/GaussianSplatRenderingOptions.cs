@@ -50,13 +50,11 @@ namespace GaussianSplatting.Runtime
         }
         static GaussianSplatRenderingOptions ms_Instance;
 
-        [Header("Options")]
         [Tooltip("Gaussian splat transparency rendering algorithm")]
         public TransparencyMode m_Transparency = TransparencyMode.SortedBlended;
         [Tooltip("Stochastic temporal filtering")]
         public StochasticTemporalFilter m_TemporalFilter = StochasticTemporalFilter.Reprojected;
 
-        [Header("Debugging Tweaks")]
         public RenderMode m_RenderMode = RenderMode.Splats;
         [Range(1.0f,15.0f)] public float m_PointDisplaySize = 3.0f;
         [Tooltip("Show only Spherical Harmonics contribution, using gray color")]

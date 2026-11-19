@@ -3,7 +3,7 @@ Shader "Unlit/BlackSkybox"
 {
     Properties
     {
-        _Color ("Color", Color) = (0,0,0,0)
+        [GaussianSplatLocalized] _Color ("Color", Color) = (0,0,0,0)
     }
     SubShader
     {

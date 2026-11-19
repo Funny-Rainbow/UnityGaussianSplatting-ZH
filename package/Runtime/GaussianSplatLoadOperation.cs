@@ -11,6 +11,8 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine.Networking;
 
+using static GaussianSplatting.Runtime.GaussianSplatLocalization;
+
 namespace GaussianSplatting.Runtime
 {
     // Splat loading "operation": does I/O, decompression / encoding jobs and CPU
@@ -109,13 +111,13 @@ namespace GaussianSplatting.Runtime
                     if (m_Read.IsValid())
                     {
                         if (m_Read.Status != ReadStatus.Complete || m_Read.GetBytesRead() != m_Compressed.Length)
-                            throw new EndOfStreamException("Could not read SPZ compressed data");
+                            throw new EndOfStreamException(Text("Could not read SPZ compressed data"));
                         m_Read.Dispose();
                         m_Read = default;
                     }
                     for (int i = 0; i < m_SpzStreams.Length; ++i)
                         if (m_SpzStreams[i].error != ZstdDecoder.Error.None)
-                            throw new InvalidDataException($"Could not decompress SPZ stream {i}: {m_SpzStreams[i].error}");
+                            throw new InvalidDataException(Format("Could not decompress SPZ stream {0}: {1}", i, Text(m_SpzStreams[i].error.ToString())));
                     DisposeZstdBuffers();
                     StartConversion();
                     break;
@@ -123,7 +125,7 @@ namespace GaussianSplatting.Runtime
                     try { ReadCameras(); }
                     catch (Exception e)
                     {
-                        cameraError = $"Could not load optional cameras '{m_CameraPath}': {e.Message}";
+                        cameraError = Format("Could not load optional cameras '{0}': {1}", m_CameraPath, e.Message);
                         FinishCameras();
                     }
                     break;
@@ -150,7 +152,7 @@ namespace GaussianSplatting.Runtime
             {
                 if (gzip) m_Gzip = new GZipStream(m_Stream, CompressionMode.Decompress, true);
                 m_Spz = SPZFileReader.ReadHeader((Stream)m_Gzip ?? m_Stream);
-                if (gzip != (m_Spz.version < 4)) throw new InvalidDataException("SPZ compression does not match its version");
+                if (gzip != (m_Spz.version < 4)) throw new InvalidDataException(Text("SPZ compression does not match its version"));
                 m_Data = new GaussianSplatData(m_Spz.count, m_Spz.degree);
                 m_Input = new NativeArray<byte>(m_Spz.dataSize, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
                 m_Ply.properties = new NativeArray<int>(0, Allocator.Persistent);
@@ -171,7 +173,7 @@ namespace GaussianSplatting.Runtime
                 m_Input = new NativeArray<byte>(capacity * m_Ply.stride, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
                 StartConversion();
             }
-            else throw new InvalidDataException("Expected binary PLY or SPZ (versions 1–4)");
+            else throw new InvalidDataException(Text("Expected binary PLY or SPZ (versions 1–4)"));
         }
 
         unsafe void StartZstdDecompression()
@@ -192,7 +194,7 @@ namespace GaussianSplatting.Runtime
                 while (offset < m_Compressed.Length)
                 {
                     int read = m_Stream.Read(new Span<byte>((byte*)m_Compressed.GetUnsafePtr() + offset, m_Compressed.Length - offset));
-                    if (read == 0) throw new EndOfStreamException("Truncated SPZ compressed data");
+                    if (read == 0) throw new EndOfStreamException(Text("Truncated SPZ compressed data"));
                     offset += read;
                 }
             }
@@ -219,10 +221,10 @@ namespace GaussianSplatting.Runtime
                 {
                     if (m_CancelDecompression) return;
                     int read = m_Gzip.Read(new Span<byte>(buffer + offset, math.min(m_Input.Length - offset, 65536)));
-                    if (read == 0) throw new EndOfStreamException("Truncated SPZ data");
+                    if (read == 0) throw new EndOfStreamException(Text("Truncated SPZ data"));
                     offset += read;
                 }
-                if (!m_CancelDecompression && m_Gzip.ReadByte() != -1) throw new InvalidDataException("Unexpected SPZ trailing data");
+                if (!m_CancelDecompression && m_Gzip.ReadByte() != -1) throw new InvalidDataException(Text("Unexpected SPZ trailing data"));
             }
             catch (Exception e) { m_DecompressionError = e; }
         }
@@ -248,7 +250,7 @@ namespace GaussianSplatting.Runtime
                     while (offset < bytes)
                     {
                         int read = m_Stream.Read(new Span<byte>((byte*)m_Input.GetUnsafePtr() + offset, bytes - offset));
-                        if (read == 0) throw new EndOfStreamException("Truncated PLY data");
+                        if (read == 0) throw new EndOfStreamException(Text("Truncated PLY data"));
                         offset += read;
                     }
                 }
@@ -276,7 +278,7 @@ namespace GaussianSplatting.Runtime
             if (m_Read.IsValid())
             {
                 if (m_Read.Status != ReadStatus.Complete || m_Read.GetBytesRead() != m_BatchLength * m_Ply.stride)
-                    throw new EndOfStreamException("Could not read PLY vertex data");
+                    throw new EndOfStreamException(Text("Could not read PLY vertex data"));
                 m_Read.Dispose();
                 m_Read = default;
                 m_Stream.Position += m_BatchLength * m_Ply.stride;
@@ -285,7 +287,7 @@ namespace GaussianSplatting.Runtime
             for (int i = 0; i < batches; ++i)
             {
                 var result = m_Results[i];
-                if (result.invalidSplat != 0) throw new InvalidDataException($"Invalid or unrepresentable values at splat {result.invalidSplat - 1}");
+                if (result.invalidSplat != 0) throw new InvalidDataException(Format("Invalid or unrepresentable values at splat {0}", result.invalidSplat - 1));
                 m_Min = math.min(m_Min, result.min);
                 m_Max = math.max(m_Max, result.max);
             }
